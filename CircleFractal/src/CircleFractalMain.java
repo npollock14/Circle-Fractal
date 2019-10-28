@@ -36,26 +36,44 @@ public class CircleFractalMain extends JPanel
 	public void paint(Graphics g) {
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g;
-			g2.setColor(Color.black);
-			g2.fillRect(0, 0, screenWidth, screenHeight);
-			g2.setColor(Color.white);
-		for(Circle c : cs) {
+		g2.setColor(Color.black);
+		g2.fillRect(0, 0, screenWidth, screenHeight);
+		g2.setColor(Color.white);
+		for (Circle c : cs) {
 			c.draw(g2);
 		}
 	}
 
 	public void update() throws InterruptedException {
-		for(Circle c : cs) {
+		for (Circle c : cs) {
 			c.update(cs);
 		}
+		addCircle();
 	}
 
 	private void init() {
 		cs = new ArrayList<Circle>();
-		cs.add(new Circle(500,500));
-		cs.add(new Circle(700,700));
+		cs.add(new Circle(500, 500));
+		cs.add(new Circle(700, 700));
 	}
 
+	public void addCircle() {
+		while(true) {
+		double x = Math.random() * screenWidth + 1;
+		double y = Math.random() * screenHeight + 1;
+		// if !in a circle
+		boolean valid = true;
+		for (Circle c : cs) {
+			if (new Circle(x, y).intersects(c)) {
+			valid = false;	
+			}
+		}
+		if(valid) {
+				cs.add(new Circle(x,y));
+				break;
+		}
+	}
+	}
 	// ==================code above ===========================
 
 	@Override
@@ -165,46 +183,53 @@ public class CircleFractalMain extends JPanel
 	}
 
 }
+
 class Circle {
-	double x,y,r=Double.MIN_VALUE;
+	double x, y, r = Double.MIN_VALUE;
 	boolean growing = true;
 	int thresh = 1;
-	double stroke = r/20;
+	double stroke = r / 20;
 
-	public Circle(int x, int y) {
+	public Circle(double x, double y) {
 		super();
 		this.x = x;
 		this.y = y;
 	}
+
 	void grow() {
 		r++;
 	}
+
 	void draw(Graphics2D g2) {
 		g2.setStroke(new BasicStroke((float) stroke));
-		g2.drawOval((int)(x-r), (int)(y-r), (int)(r*2), (int)(r*2));
+		g2.drawOval((int) (x - r), (int) (y - r), (int) (r * 2), (int) (r * 2));
 	}
+
 	boolean intersects(Circle c) {
-		return((x-c.x) * (x-c.x) + (y-c.y)*(y-c.y) < (c.r + r + thresh + stroke) * (c.r + r + thresh + c.stroke));
-		//return(distance(c.x,c.y,x,y) <= c.r + r + thresh);
+		return ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) < (c.r + r + thresh + stroke)
+				* (c.r + r + thresh + c.stroke));
+		// return(distance(c.x,c.y,x,y) <= c.r + r + thresh);
 	}
+
 	void update(ArrayList<Circle> cs) {
-		if(growing) {
-		for(Circle c : cs) {
-			if(c != this) {
-				if(this.intersects(c)) {
-					growing = false;
-					c.growing = false;
-					break;
+		if (growing) {
+			for (Circle c : cs) {
+				if (c != this) {
+					if (this.intersects(c)) {
+						growing = false;
+						c.growing = false;
+						break;
+					}
 				}
 			}
+			grow();
+			stroke = r / 20;
 		}
-		grow();
-		stroke = r/20;
-		}
-		
+
 	}
-	double distance(double x1,double y1, double x2, double y2) {
+
+	double distance(double x1, double y1, double x2, double y2) {
 		return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 	}
-	
+
 }
