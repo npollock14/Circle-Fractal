@@ -30,6 +30,7 @@ public class CircleFractalMain extends JPanel
 	ArrayList<Circle> cs;
 	boolean init = true;
 	Graphics2D g2;
+	Camera cam = new Camera(0,0,1,screenWidth,screenHeight);
 
 	// ============== end of settings ==================
 
@@ -40,7 +41,7 @@ public class CircleFractalMain extends JPanel
 		g2.fillRect(0, 0, screenWidth, screenHeight);
 		g2.setColor(Color.white);
 		for (Circle c : cs) {
-			c.draw(g2);
+			c.draw(g2,cam);
 		}
 	}
 
@@ -49,6 +50,7 @@ public class CircleFractalMain extends JPanel
 			c.update(cs);
 		}
 		addCircle();
+		//cam.changeScale(.005f);
 	}
 
 	private void init() {
@@ -187,8 +189,8 @@ public class CircleFractalMain extends JPanel
 class Circle {
 	double x, y, r = Double.MIN_VALUE;
 	boolean growing = true;
-	int thresh = 1;
-	double stroke = r / 20;
+	int thresh = 0;
+	double stroke = 1;//r / 20;
 
 	public Circle(double x, double y) {
 		super();
@@ -197,27 +199,29 @@ class Circle {
 	}
 
 	void grow() {
-		r++;
+		r+= .01;
 	}
 
-	void draw(Graphics2D g2) {
-		g2.setStroke(new BasicStroke((float) stroke));
-		g2.drawOval((int) (x - r), (int) (y - r), (int) (r * 2), (int) (r * 2));
+	void draw(Graphics2D g2, Camera cam) {
+		//g2.setStroke(new BasicStroke((float) (stroke * cam.scale)));
+		g2.drawOval(cam.toXScreen((int) (x - r)), cam.toYScreen((int) (y - r)), (int) (r * 2 * cam.scale), (int) (r * 2 * cam.scale));
 	}
 
 	boolean intersects(Circle c) {
-		return ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) < (c.r + r + thresh + stroke)
-				* (c.r + r + thresh + c.stroke));
+		return ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) <= (c.r + r + thresh + stroke + c.stroke)
+				* (c.r + r + thresh + c.stroke + stroke));
 		// return(distance(c.x,c.y,x,y) <= c.r + r + thresh);
 	}
 
 	void update(ArrayList<Circle> cs) {
 		if (growing) {
+			//double distS = 1;
 			for (Circle c : cs) {
 				if (c != this) {
+					//double dist = (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) - (c.r + r + thresh + stroke);
 					if (this.intersects(c)) {
 						growing = false;
-						c.growing = false;
+						//c.growing = false;
 						break;
 					}
 				}
@@ -232,4 +236,71 @@ class Circle {
 		return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 	}
 
+}
+class Camera {
+	int xOff, yOff, screenW, screenH;
+	double scale;
+	Point center;
+	float scaleNotches = 0;
+	float targetScale;
+
+	public Camera(int xOff, int yOff, double scale, int screenW, int screenH) {
+		super();
+		this.xOff = xOff;
+		this.yOff = yOff;
+		this.scale = scale;
+		this.screenW = screenW;
+		this.screenH = screenH;
+		center = new Point(screenW / 2, screenH / 2);
+	}
+
+	public void focus(Point p) {
+		xOff = screenW / 2 - p.x;
+		yOff = screenH / 2 - p.y;
+	}
+
+	public void changeScale(float notches) {
+		scaleNotches += notches;
+		scale = Math.pow(2, scaleNotches);
+	}
+
+	public int toXScreen(int x) {
+		int dx = (int) ((x + xOff - center.x) * scale);
+		return (center.x + dx);
+	}
+
+	public int toYScreen(int y) {
+		int dy = (int) ((y + yOff - center.y) * scale);
+		return (center.y + dy);
+	}
+
+	public int toXMap(int x) {
+		return (int) ((x - center.x) / scale) + center.x - xOff;
+	}
+
+	public int toYMap(int y) {
+		return (int) ((y - center.y) / scale) + center.y - yOff;
+	}
+}
+class Point {
+	int x, y;
+
+	public Point(int x, int y) {
+		super();
+		this.x = x;
+		this.y = y;
+	}
+
+	public double distanceTo(Point p2) {
+		return Math.sqrt((this.x - p2.x) * (this.x - p2.x) + (this.y - p2.y) * (this.y - p2.y));
+	}
+
+	public double angleTo(Point p2) {
+		try {
+			return Math.atan2(this.y - p2.y, this.x - p2.x);
+		} catch (Exception e) {
+
+		}
+		return 0;
+	}
 }
