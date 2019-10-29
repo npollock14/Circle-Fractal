@@ -131,13 +131,15 @@ public class CircleFractalMain extends JPanel
 		f.addMouseListener(this);
 
 		f.add(this);
+		
+		init();
 
 		t = new Timer(15, this);
 		t.start();
 		f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		f.setVisible(true);
 
-		init();
+		
 
 	}
 
