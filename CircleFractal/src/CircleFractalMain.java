@@ -30,7 +30,9 @@ public class CircleFractalMain extends JPanel
 	ArrayList<Circle> cs;
 	boolean init = true;
 	Graphics2D g2;
-	Camera cam = new Camera(0,0,1,screenWidth,screenHeight);
+	Camera cam = new Camera(0, 0, 1, screenWidth, screenHeight);
+	boolean buffering = true;
+	int size = 1000;
 
 	// ============== end of settings ==================
 
@@ -41,40 +43,62 @@ public class CircleFractalMain extends JPanel
 		g2.fillRect(0, 0, screenWidth, screenHeight);
 		g2.setColor(Color.white);
 		for (Circle c : cs) {
-			c.draw(g2,cam);
+			c.draw(g2, cam);
 		}
 	}
 
 	public void update() throws InterruptedException {
+		// while(buffering) {
 		for (Circle c : cs) {
 			c.update(cs);
 		}
-		addCircle();
-		//cam.changeScale(.005f);
+		//for(int i = 0; i < 1; i++) {
+		addCircle(screenWidth, screenHeight);
+		//}
+		if (cs.size() == size) {
+			buffering = false;
+		}
+		// cam.changeScale(.005f);
+		if (keys[87]) {
+			cam.yOff += 10 / cam.scale;
+		}
+		if (keys[83]) {
+			cam.yOff -= 10 / cam.scale;
+		}
+		if (keys[68]) {
+			cam.xOff -= 10 / cam.scale;
+		}
+		if (keys[65]) {
+			cam.xOff += 10 / cam.scale;
+		}
 	}
+
+	// }
 
 	private void init() {
 		cs = new ArrayList<Circle>();
-		cs.add(new Circle(500, 500));
-		cs.add(new Circle(700, 700));
+		cs.add(new Circle(Math.random() * screenWidth + 1, Math.random() * screenHeight + 1));
+		cs.add(new Circle(Math.random() * screenWidth + 1, Math.random() * screenHeight + 1));
 	}
 
-	public void addCircle() {
-		while(true) {
-		double x = Math.random() * screenWidth + 1;
-		double y = Math.random() * screenHeight + 1;
-		// if !in a circle
-		boolean valid = true;
-		for (Circle c : cs) {
-			if (new Circle(x, y).intersects(c)) {
-			valid = false;	
+	public void addCircle(int screenWidth, int screenHeight) {
+		int attempts = 0;
+		while (attempts < 1000) {
+			double x = cam.toXMap(Math.random() * screenWidth + 1);
+			double y = cam.toYMap(Math.random() * screenHeight + 1);
+			// if !in a circle
+			boolean valid = true;
+			for (Circle c : cs) {
+				if (new Circle(x, y).intersects(c, c.growRate)) {
+					valid = false;
+				}
 			}
-		}
-		if(valid) {
-				cs.add(new Circle(x,y));
+			if (valid) {
+				cs.add(new Circle(x, y));
 				break;
+			}
+			attempts++;
 		}
-	}
 	}
 	// ==================code above ===========================
 
@@ -146,6 +170,11 @@ public class CircleFractalMain extends JPanel
 	@Override
 	public void mouseWheelMoved(MouseWheelEvent e) {
 
+		if (e.getWheelRotation() < 0) {
+			cam.changeScale(.1f);
+		} else {
+			cam.changeScale(-.1f);
+		}
 	}
 
 	@Override
@@ -189,8 +218,9 @@ public class CircleFractalMain extends JPanel
 class Circle {
 	double x, y, r = Double.MIN_VALUE;
 	boolean growing = true;
-	int thresh = 0;
-	double stroke = 1;//r / 20;
+	double thresh = 0;
+	double stroke = 1;// r / 20;
+	double growRate = 1f;
 
 	public Circle(double x, double y) {
 		super();
@@ -199,35 +229,58 @@ class Circle {
 	}
 
 	void grow() {
-		r+= .01;
+		r += growRate;
+
 	}
 
 	void draw(Graphics2D g2, Camera cam) {
-		//g2.setStroke(new BasicStroke((float) (stroke * cam.scale)));
-		g2.drawOval(cam.toXScreen((int) (x - r)), cam.toYScreen((int) (y - r)), (int) (r * 2 * cam.scale), (int) (r * 2 * cam.scale));
+		// g2.setStroke(new BasicStroke((float) (stroke * cam.scale)));
+		g2.drawOval(cam.toXScreen((int) (x - r)), cam.toYScreen((int) (y - r)), (int) (r * 2 * cam.scale),
+				(int) (r * 2 * cam.scale));
+	}
+
+	boolean intersects(Circle c, double threshHold) {
+		return ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) <= (c.r + r + threshHold + stroke)
+				* (c.r + r + threshHold + stroke));
+		// return(distance(c.x,c.y,x,y) <= c.r + r + thresh);
 	}
 
 	boolean intersects(Circle c) {
-		return ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) <= (c.r + r + thresh + stroke + c.stroke)
-				* (c.r + r + thresh + c.stroke + stroke));
+		return ((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) <= (c.r + r + thresh + stroke)
+				* (c.r + r + thresh + stroke));
 		// return(distance(c.x,c.y,x,y) <= c.r + r + thresh);
 	}
 
 	void update(ArrayList<Circle> cs) {
+		double distS = 1;
 		if (growing) {
-			//double distS = 1;
 			for (Circle c : cs) {
 				if (c != this) {
-					//double dist = (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y) - (c.r + r + thresh + stroke);
-					if (this.intersects(c)) {
-						growing = false;
-						//c.growing = false;
-						break;
-					}
+					distS = Math.sqrt((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y)) - (r + c.r);
+					break;
 				}
 			}
+
+			for (Circle c : cs) {
+				if (c != this) {
+
+					if (this.intersects(c)) {
+						growing = false;
+						// c.growing = false;
+						// break;
+					}
+
+					double dist = Math.sqrt((x - c.x) * (x - c.x) + (y - c.y) * (y - c.y)) - (r + c.r);
+					double tempS = dist - c.r;
+					if (dist < distS) {
+						distS = dist;
+					}
+
+				}
+			}
+			growRate = (distS / 20);
 			grow();
-			stroke = r / 20;
+			// stroke = r / 20;
 		}
 
 	}
@@ -237,8 +290,9 @@ class Circle {
 	}
 
 }
+
 class Camera {
-	int xOff, yOff, screenW, screenH;
+	double xOff, yOff, screenW, screenH;
 	double scale;
 	Point center;
 	float scaleNotches = 0;
@@ -274,14 +328,15 @@ class Camera {
 		return (center.y + dy);
 	}
 
-	public int toXMap(int x) {
-		return (int) ((x - center.x) / scale) + center.x - xOff;
+	public double toXMap(double x) {
+		return ((x - center.x) / scale) + center.x - xOff;
 	}
 
-	public int toYMap(int y) {
-		return (int) ((y - center.y) / scale) + center.y - yOff;
+	public double toYMap(double y) {
+		return ((y - center.y) / scale) + center.y - yOff;
 	}
 }
+
 class Point {
 	int x, y;
 
